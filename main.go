@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"net/http"
-	"os"
 	"path/filepath"
 	"sync"
 	"time"
@@ -66,8 +65,9 @@ func main() {
 				if err != nil {
 					panic(err)
 				}
+				<-t.GotInfo()
 				t.DownloadAll()
-				for range time.NewTicker(time.Second * 3).C {
+				for range time.NewTicker(time.Second * 10).C {
 					stats := t.Stats()
 					pt(
 						"%s: <downloaded %5.2f%%> <peers %d/%d/%d/%d/%d> <file %s>\n",
@@ -81,10 +81,10 @@ func main() {
 						torrentFile,
 					)
 					if t.BytesCompleted() == t.Length() {
-						if err := os.Rename(torrentFile, torrentFile+".complete"); err != nil {
-							panic(err)
-						}
-						fileSet.Delete(fileSet)
+						//if err := os.Rename(torrentFile, torrentFile+".complete"); err != nil {
+						//	panic(err)
+						//}
+						//fileSet.Delete(fileSet)
 						break
 					}
 				}
