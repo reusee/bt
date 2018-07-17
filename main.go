@@ -3,8 +3,11 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"os"
+	"os/signal"
 	"path/filepath"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/anacrolix/torrent"
@@ -45,7 +48,13 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	defer client.Close()
+	defer func() {
+		client.Close()
+		pt("closed\n")
+	}()
+
+	c := make(chan os.Signal)
+	signal.Notify(c, syscall.SIGTERM, syscall.SIGINT)
 
 	fileSet := new(sync.Map)
 	addTorrent := func() {
@@ -68,9 +77,22 @@ func main() {
 				<-t.GotInfo()
 				t.DownloadAll()
 				for range time.NewTicker(time.Second * 10).C {
+					ps := t.PieceStateRuns()
+					var numPartial, numChecking, numComplete int
+					for _, p := range ps {
+						if p.Partial {
+							numPartial += p.Length
+						}
+						if p.Checking {
+							numChecking += p.Length
+						}
+						if p.Complete {
+							numComplete += p.Length
+						}
+					}
 					stats := t.Stats()
 					pt(
-						"%s: <downloaded %5.2f%%> <peers %d/%d/%d/%d/%d> <file %s>\n",
+						"%s: <downloaded %5.2f%%> <peers %d/%d/%d/%d/%d> <piece %d/%d/%d/%d> <file %s>\n",
 						time.Now().Format("15:04:05"),
 						float64(t.BytesCompleted())/float64(t.Length())*100,
 						stats.PendingPeers,
@@ -78,6 +100,10 @@ func main() {
 						stats.ConnectedSeeders,
 						stats.ActivePeers,
 						stats.TotalPeers,
+						numPartial,
+						numChecking,
+						numComplete,
+						t.NumPieces(),
 						torrentFile,
 					)
 					if t.BytesCompleted() == t.Length() {
@@ -99,5 +125,7 @@ func main() {
 		}
 	}()
 
-	select {}
+	select {
+	case <-c:
+	}
 }
