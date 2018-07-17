@@ -23,7 +23,7 @@ func main() {
 	config.DataDir = dir
 	config.UploadRateLimiter = rate.NewLimiter(
 		rate.Every(time.Second*1),
-		1024*128,
+		1024*32,
 	)
 	config.TrackerHttpClient = func() *http.Client {
 		dialer, err := proxy.SOCKS5(
