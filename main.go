@@ -6,11 +6,13 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
 
 	"github.com/anacrolix/torrent"
+	"github.com/anacrolix/torrent/bencode"
 	"golang.org/x/net/proxy"
 	"golang.org/x/time/rate"
 )
@@ -57,7 +59,10 @@ func main() {
 	signal.Notify(c, syscall.SIGTERM, syscall.SIGINT)
 
 	fileSet := new(sync.Map)
+	magnetSet := new(sync.Map)
 	addTorrent := func() {
+
+		// torrent files
 		torrentFiles, err := filepath.Glob(filepath.Join(dir, "*.torrent"))
 		if err != nil {
 			panic(err)
@@ -116,6 +121,45 @@ func main() {
 				}
 			}()
 		}
+
+		// magnet links
+		magnets, err := filepath.Glob(filepath.Join(dir, "magnet:?*"))
+		if err != nil {
+			panic(err)
+		}
+		for _, magnet := range magnets {
+			magnet := magnet
+			link := strings.TrimPrefix(magnet, dir)
+			link = strings.TrimPrefix(link, "/")
+			if _, ok := magnetSet.Load(link); ok {
+				continue
+			}
+			magnetSet.Store(link, true)
+			go func() {
+				pt("%s\n", link)
+				t, err := client.AddMagnet(link)
+				if err != nil {
+					panic(err)
+				}
+				<-t.GotInfo()
+				metaInfo := t.Metainfo()
+				t.Drop()
+				f, err := os.Create(filepath.Join(dir, t.Info().Name+".torrent"))
+				if err != nil {
+					panic(err)
+				}
+				if err := bencode.NewEncoder(f).Encode(metaInfo); err != nil {
+					panic(err)
+				}
+				if err := f.Close(); err != nil {
+					panic(err)
+				}
+				if err := os.Remove(magnet); err != nil {
+					panic(err)
+				}
+			}()
+		}
+
 	}
 
 	addTorrent()
