@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -13,7 +12,6 @@ import (
 
 	"github.com/anacrolix/torrent"
 	"github.com/anacrolix/torrent/bencode"
-	"golang.org/x/net/proxy"
 	"golang.org/x/time/rate"
 )
 
@@ -29,23 +27,7 @@ func main() {
 		rate.Every(time.Second*1),
 		1024*32,
 	)
-	config.TrackerHttpClient = func() *http.Client {
-		dialer, err := proxy.SOCKS5(
-			"tcp",
-			"10.0.0.1:1080",
-			nil,
-			proxy.Direct,
-		)
-		if err != nil {
-			panic(err)
-		}
-		client := &http.Client{
-			Transport: &http.Transport{
-				Dial: dialer.Dial,
-			},
-		}
-		return client
-	}()
+	config.ProxyURL = "socks5://10.0.0.1:1080"
 	client, err := torrent.NewClient(config)
 	if err != nil {
 		panic(err)
@@ -54,6 +36,33 @@ func main() {
 		client.Close()
 		pt("closed\n")
 	}()
+
+	if len(os.Args) > 1 {
+
+		link := os.Args[1]
+		t, err := client.AddMagnet(link)
+		if err != nil {
+			panic(err)
+		}
+		pt("getting info..\n")
+		<-t.GotInfo()
+		pt("ok\n")
+		info := t.Info()
+		t.Drop()
+		info.Name = ""
+		f, err := os.Create("foo.torrent")
+		if err != nil {
+			panic(err)
+		}
+		if err := bencode.NewEncoder(f).Encode(info); err != nil {
+			panic(err)
+		}
+		if err := f.Close(); err != nil {
+			panic(err)
+		}
+
+		return
+	}
 
 	c := make(chan os.Signal)
 	signal.Notify(c, syscall.SIGTERM, syscall.SIGINT)
@@ -112,10 +121,14 @@ func main() {
 						torrentFile,
 					)
 					if t.BytesCompleted() == t.Length() {
-						//if err := os.Rename(torrentFile, torrentFile+".complete"); err != nil {
+						if err := os.Rename(torrentFile, torrentFile+".complete"); err != nil {
+							panic(err)
+						}
+						//if err := os.Remove(torrentFile); err != nil {
 						//	panic(err)
 						//}
-						//fileSet.Delete(fileSet)
+						fileSet.Delete(fileSet)
+						t.Drop()
 						break
 					}
 				}
