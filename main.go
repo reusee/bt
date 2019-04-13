@@ -20,7 +20,7 @@ var (
 )
 
 func main() {
-	dir := os.Args[1]
+	dir := "."
 	config := torrent.NewDefaultClientConfig()
 	config.DataDir = dir
 	config.UploadRateLimiter = rate.NewLimiter(
