@@ -20,14 +20,14 @@ var (
 )
 
 func main() {
-	dir := "/media/videos/bt"
+	dir := os.Args[1]
 	config := torrent.NewDefaultClientConfig()
 	config.DataDir = dir
 	config.UploadRateLimiter = rate.NewLimiter(
 		rate.Every(time.Second*1),
 		1024*32,
 	)
-	config.ProxyURL = "socks5://10.0.0.1:1080"
+	config.ProxyURL = "socks5://10.0.0.3:1080"
 	client, err := torrent.NewClient(config)
 	if err != nil {
 		panic(err)
