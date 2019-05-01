@@ -12,11 +12,13 @@ import (
 
 	"github.com/anacrolix/torrent"
 	"github.com/anacrolix/torrent/bencode"
+	"github.com/reusee/e"
 	"golang.org/x/time/rate"
 )
 
 var (
-	pt = fmt.Printf
+	pt             = fmt.Printf
+	me, we, ce, he = e.New(e.WithPackage("bt"))
 )
 
 func main() {
@@ -28,6 +30,7 @@ func main() {
 		1024*32,
 	)
 	config.ProxyURL = "socks5://10.0.0.3:1080"
+	config.PeerID = "2d4754303030322d308b23248a2bbbfe67be28c0"
 	client, err := torrent.NewClient(config)
 	if err != nil {
 		panic(err)
@@ -36,6 +39,7 @@ func main() {
 		client.Close()
 		pt("closed\n")
 	}()
+	pt("peer id: %x\n", client.PeerID())
 
 	if len(os.Args) > 1 {
 
