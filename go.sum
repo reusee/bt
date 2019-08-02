@@ -130,6 +130,8 @@ github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZb
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/reusee/e v0.0.0-20190228005849-d9a0042934dc h1:tUdfCKwNMAHiTEaCk6qcsHUpZcSIGkOcS5nViNSNuc0=
 github.com/reusee/e v0.0.0-20190228005849-d9a0042934dc/go.mod h1:mppZXqwqYaXvqEaNsbZtoi3qeX0TfwzbuQTjOuSUcmI=
+github.com/reusee/e/v2 v2.3.3 h1:/voLHd60okWZ1KEaY4Pln877sbxYQJR2qj48bpWyI0I=
+github.com/reusee/e/v2 v2.3.3/go.mod h1:kykJjxDURd5MAGzB+xkwN7WxfuZaotLjTssHtjpi5LQ=
 github.com/ryszard/goskiplist v0.0.0-20150312221310-2dfbae5fcf46 h1:GHRpF1pTW19a8tTFrMLUcfWwyC0pnifVo2ClaLq+hP8=
 github.com/ryszard/goskiplist v0.0.0-20150312221310-2dfbae5fcf46/go.mod h1:uAQ5PCi+MFsC7HjREoAz1BU+Mq60+05gifQSsHSDG/8=
 github.com/smartystreets/assertions v0.0.0-20180927180507-b2de0cb4f26d/go.mod h1:OnSkiWE9lh6wB0YB77sQom3nweQdgAjqCqsofrRNTgc=

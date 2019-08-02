@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -13,13 +14,14 @@ import (
 
 	"github.com/anacrolix/torrent"
 	"github.com/anacrolix/torrent/bencode"
-	"github.com/reusee/e"
+	"github.com/reusee/e/v2"
 	"golang.org/x/time/rate"
 )
 
 var (
-	pt             = fmt.Printf
-	me, we, ce, he = e.New(e.WithPackage("bt"))
+	me     = e.Default.WithStack()
+	ce, he = e.New(me)
+	pt     = fmt.Printf
 )
 
 func main() {
@@ -35,9 +37,7 @@ func main() {
 	ce(err)
 	config.PeerID = string(peerID)
 	client, err := torrent.NewClient(config)
-	if err != nil {
-		panic(err)
-	}
+	ce(err)
 	defer func() {
 		client.Close()
 		pt("closed\n")
@@ -48,9 +48,7 @@ func main() {
 
 		link := os.Args[1]
 		t, err := client.AddMagnet(link)
-		if err != nil {
-			panic(err)
-		}
+		ce(err)
 		pt("getting info..\n")
 		<-t.GotInfo()
 		pt("ok\n")
@@ -58,15 +56,9 @@ func main() {
 		t.Drop()
 		info.Name = ""
 		f, err := os.Create("foo.torrent")
-		if err != nil {
-			panic(err)
-		}
-		if err := bencode.NewEncoder(f).Encode(info); err != nil {
-			panic(err)
-		}
-		if err := f.Close(); err != nil {
-			panic(err)
-		}
+		ce(err)
+		ce(bencode.NewEncoder(f).Encode(info))
+		ce(f.Close())
 
 		return
 	}
@@ -80,9 +72,7 @@ func main() {
 
 		// torrent files
 		torrentFiles, err := filepath.Glob(filepath.Join(dir, "*.torrent"))
-		if err != nil {
-			panic(err)
-		}
+		ce(err)
 		for _, torrentFile := range torrentFiles {
 			if _, ok := fileSet.Load(torrentFile); ok {
 				continue
@@ -92,9 +82,7 @@ func main() {
 			pt("%s\n", torrentFile)
 			go func() {
 				t, err := client.AddTorrentFromFile(torrentFile)
-				if err != nil {
-					panic(err)
-				}
+				ce(err)
 				<-t.GotInfo()
 				t.DownloadAll()
 				for range time.NewTicker(time.Second * 10).C {
@@ -128,9 +116,7 @@ func main() {
 						torrentFile,
 					)
 					if t.BytesCompleted() == t.Length() {
-						if err := os.Rename(torrentFile, torrentFile+".complete"); err != nil {
-							panic(err)
-						}
+						ce(os.Rename(torrentFile, torrentFile+".complete"))
 						//if err := os.Remove(torrentFile); err != nil {
 						//	panic(err)
 						//}
@@ -143,41 +129,48 @@ func main() {
 		}
 
 		// magnet links
-		magnets, err := filepath.Glob(filepath.Join(dir, "magnet:?*"))
-		if err != nil {
-			panic(err)
-		}
-		for _, magnet := range magnets {
-			magnet := magnet
-			link := strings.TrimPrefix(magnet, dir)
-			link = strings.TrimPrefix(link, "/")
+		addMagnetLink := func(link string) {
 			if _, ok := magnetSet.Load(link); ok {
-				continue
+				return
 			}
 			magnetSet.Store(link, true)
 			go func() {
 				pt("%s\n", link)
 				t, err := client.AddMagnet(link)
-				if err != nil {
-					panic(err)
-				}
+				ce(err)
 				<-t.GotInfo()
 				metaInfo := t.Metainfo()
 				t.Drop()
 				f, err := os.Create(filepath.Join(dir, t.Info().Name+".torrent"))
-				if err != nil {
-					panic(err)
-				}
-				if err := bencode.NewEncoder(f).Encode(metaInfo); err != nil {
-					panic(err)
-				}
-				if err := f.Close(); err != nil {
-					panic(err)
-				}
-				if err := os.Remove(magnet); err != nil {
-					panic(err)
-				}
+				ce(err)
+				ce(bencode.NewEncoder(f).Encode(metaInfo))
+				ce(f.Close())
 			}()
+		}
+		// file name
+		magnets, err := filepath.Glob(filepath.Join(dir, "magnet:?*"))
+		ce(err)
+		for _, magnet := range magnets {
+			magnet := magnet
+			link := strings.TrimPrefix(magnet, dir)
+			link = strings.TrimPrefix(link, "/")
+			addMagnetLink(link)
+			ce(os.Remove(magnet))
+		}
+		// link in files
+		names, err := filepath.Glob(filepath.Join(dir, "*.magnet"))
+		ce(err)
+		for _, name := range names {
+			content, err := ioutil.ReadFile(name)
+			ce(err)
+			lines := strings.Split(string(content), "\n")
+			for _, line := range lines {
+				line = strings.TrimSpace(line)
+				if !strings.HasPrefix(line, "magnet") {
+					continue
+				}
+				addMagnetLink(line)
+			}
 		}
 
 	}
