@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"fmt"
 	"os"
 	"os/signal"
@@ -30,7 +31,9 @@ func main() {
 		1024*32,
 	)
 	config.ProxyURL = "socks5://10.0.0.3:1080"
-	config.PeerID = "2d4754303030322d308b23248a2bbbfe67be28c0"
+	peerID, err := hex.DecodeString("2d4754303030322d308b23248a2bbbfe67be28c0")
+	ce(err)
+	config.PeerID = string(peerID)
 	client, err := torrent.NewClient(config)
 	if err != nil {
 		panic(err)
