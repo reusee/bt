@@ -125,6 +125,7 @@ func main() {
 						t.Drop()
 						break
 					}
+					client.WriteStatus(os.Stdout)
 				}
 			}()
 		}
