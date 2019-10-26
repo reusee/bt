@@ -32,7 +32,7 @@ func main() {
 		rate.Every(time.Second*1),
 		1024*32,
 	)
-	config.ProxyURL = "socks5://10.0.0.3:1080"
+	config.ProxyURL = "socks5://localhost:9103"
 	peerID, err := hex.DecodeString("2d4754303030322d308b23248a2bbbfe67be28c0")
 	ce(err)
 	config.PeerID = string(peerID)
