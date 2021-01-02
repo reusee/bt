@@ -3,15 +3,13 @@ module github.com/reusee/bt
 go 1.12
 
 require (
-	github.com/RoaringBitmap/roaring v0.4.21 // indirect
-	github.com/anacrolix/dht v1.0.1 // indirect
-	github.com/anacrolix/dht/v2 v2.1.0 // indirect
-	github.com/anacrolix/torrent v1.8.2
-	github.com/glycerine/go-unsnap-stream v0.0.0-20190901134440-81cf024a9e0a // indirect
-	github.com/mattn/go-sqlite3 v1.11.0 // indirect
-	github.com/reusee/e/v2 v2.3.3
-	golang.org/x/net v0.0.0-20191021144547-ec77196f6094 // indirect
-	golang.org/x/sys v0.0.0-20191026070338-33540a1f6037 // indirect
-	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
-	golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898 // indirect
+	github.com/anacrolix/torrent v1.19.2
+	github.com/google/uuid v1.1.3 // indirect
+	github.com/pion/rtp v1.6.2 // indirect
+	github.com/pion/transport v0.12.1 // indirect
+	github.com/reusee/e4 v0.0.0-20210101094800-4ab0de83470a
+	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad // indirect
+	golang.org/x/net v0.0.0-20201224014010-6772e930b67b // indirect
+	golang.org/x/sys v0.0.0-20201231184435-2d18734c6014 // indirect
+	golang.org/x/time v0.0.0-20201208040808-7e3f01d25324
 )

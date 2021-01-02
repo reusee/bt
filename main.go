@@ -14,14 +14,15 @@ import (
 
 	"github.com/anacrolix/torrent"
 	"github.com/anacrolix/torrent/bencode"
-	"github.com/reusee/e/v2"
+	"github.com/reusee/e4"
 	"golang.org/x/time/rate"
 )
 
 var (
-	me     = e.Default.WithStack()
-	ce, he = e.New(me)
-	pt     = fmt.Printf
+	we = e4.DefaultWrap
+	ce = e4.Check
+	he = e4.Handle
+	pt = fmt.Printf
 )
 
 func main() {
@@ -32,7 +33,6 @@ func main() {
 		rate.Every(time.Second*1),
 		1024*32,
 	)
-	config.ProxyURL = "socks5://localhost:9103"
 	peerID, err := hex.DecodeString("2d4754303030322d308b23248a2bbbfe67be28c0")
 	ce(err)
 	config.PeerID = string(peerID)
