@@ -4,6 +4,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
+	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -33,6 +35,9 @@ func main() {
 		rate.Every(time.Second*1),
 		1024*32,
 	)
+	proxyURL, err := url.Parse("socks5://192.168.88.200:9103")
+	ce(err)
+	config.HTTPProxy = http.ProxyURL(proxyURL)
 	peerID, err := hex.DecodeString("2d4754303030322d308b23248a2bbbfe67be28c0")
 	ce(err)
 	config.PeerID = string(peerID)
@@ -44,25 +49,6 @@ func main() {
 	}()
 	pt("peer id: %x\n", client.PeerID())
 
-	if len(os.Args) > 1 {
-
-		link := os.Args[1]
-		t, err := client.AddMagnet(link)
-		ce(err)
-		pt("getting info..\n")
-		<-t.GotInfo()
-		pt("ok\n")
-		info := t.Info()
-		t.Drop()
-		info.Name = ""
-		f, err := os.Create("foo.torrent")
-		ce(err)
-		ce(bencode.NewEncoder(f).Encode(info))
-		ce(f.Close())
-
-		return
-	}
-
 	c := make(chan os.Signal)
 	signal.Notify(c, syscall.SIGTERM, syscall.SIGINT)
 
@@ -71,18 +57,34 @@ func main() {
 	addTorrent := func() {
 
 		// torrent files
-		torrentFiles, err := filepath.Glob(filepath.Join(dir, "*.torrent"))
+		torrentFiles, err := filepath.Glob(filepath.Join(dir, "*"))
 		ce(err)
 		for _, torrentFile := range torrentFiles {
 			if _, ok := fileSet.Load(torrentFile); ok {
 				continue
 			}
 			fileSet.Store(torrentFile, true)
+
 			torrentFile := torrentFile
 			pt("%s\n", torrentFile)
 			go func() {
-				t, err := client.AddTorrentFromFile(torrentFile)
-				ce(err)
+
+				var t *torrent.Torrent
+				if strings.HasPrefix(torrentFile, "magnet:") {
+					spec, err := torrent.TorrentSpecFromMagnetUri(torrentFile)
+					ce(err)
+					t, _, err = client.AddTorrentSpec(spec)
+					ce(err)
+					pt("add %s\n", torrentFile)
+				} else if strings.HasSuffix(torrentFile, ".torrent") {
+					t, err = client.AddTorrentFromFile(torrentFile)
+					ce(err)
+					pt("add %s\n", torrentFile)
+				} else {
+					pt("skip %s\n", torrentFile)
+					return
+				}
+
 				t.AddTrackers(trackers)
 				<-t.GotInfo()
 				t.DownloadAll()
@@ -193,173 +195,321 @@ func main() {
 var trackers = func() (ret [][]string) {
 	// from https://github.com/ngosang/trackerslist
 	const text = `
-udp://tracker.coppersurfer.tk:6969/announce
-
-udp://tracker.open-internet.nl:6969/announce
-
-udp://tracker.leechers-paradise.org:6969/announce
+  http://tracker.opentrackr.org:1337/announce
 
 udp://tracker.opentrackr.org:1337/announce
-
-udp://tracker.internetwarriors.net:1337/announce
-
-http://tracker.opentrackr.org:1337/announce
-
-http://tracker.internetwarriors.net:1337/announce
 
 udp://9.rarbg.to:2710/announce
 
 udp://9.rarbg.me:2710/announce
 
-udp://tracker.openbittorrent.com:80/announce
+udp://3rt.tace.ru:60889/announce
+
+http://5rt.tace.ru:60889/announce
+
+udp://tracker.internetwarriors.net:1337/announce
+
+http://tracker.internetwarriors.net:1337/announce
+
+udp://tracker.cyberia.is:6969/announce
+
+udp://exodus.desync.com:6969/announce
+
+udp://explodie.org:6969/announce
+
+http://explodie.org:6969/announce
+
+udp://tracker3.itzmx.com:6961/announce
 
 http://tracker3.itzmx.com:6961/announce
 
 http://tracker1.itzmx.com:8080/announce
 
-udp://exodus.desync.com:6969/announce
+udp://www.torrent.eu.org:451/announce
 
 udp://tracker.torrent.eu.org:451/announce
 
-udp://tracker.tiny-vps.com:6969/announce
+udp://open.stealth.si:80/announce
+
+udp://tracker.ds.is:6969/announce
 
 udp://retracker.lanta-net.ru:2710/announce
 
-udp://tracker2.itzmx.com:6961/announce
-
-udp://tracker.cyberia.is:6969/announce
-
-udp://open.stealth.si:80/announce
-
-udp://open.demonii.si:1337/announce
-
-udp://denis.stalker.upeer.me:6969/announce
-
-http://tracker2.itzmx.com:6961/announce
-
-udp://explodie.org:6969/announce
-
-udp://bt.xxx-tracker.com:2710/announce
+udp://tracker.tiny-vps.com:6969/announce
 
 http://open.acgnxtracker.com:80/announce
 
-http://explodie.org:6969/announce
-
-udp://tracker4.itzmx.com:2710/announce
-
-http://retracker.mgts.by:80/announce
+udp://tracker.zerobytes.xyz:1337/announce
 
 udp://tracker.moeking.me:6969/announce
 
-udp://torrentclub.tech:6969/announce
+udp://open.demonii.si:1337/announce
+
+http://tracker.zerobytes.xyz:1337/announce
 
 udp://ipv4.tracker.harry.lu:80/announce
 
-http://torrentclub.tech:6969/announce
+http://rt.tace.ru:80/announce
+
+udp://cdn-2.gamecoast.org:6969/announce
+
+udp://cdn-1.gamecoast.org:6969/announce
+
+http://tracker-cdn.moeking.me:2095/announce
+
+udp://valakas.rollo.dnsabr.com:2710/announce
+
+udp://tracker.shkinev.me:6969/announce
+
+udp://t1.leech.ie:1337/announce
+
+udp://opentor.org:2710/announce
+
+udp://mts.tvbit.co:6969/announce
+
+udp://ln.mtahost.co:6969/announce
+
+udp://47.ip-51-68-199.eu:6969/announce
+
+https://trakx.herokuapp.com:443/announce
+
+http://t.overflow.biz:6969/announce
+
+http://opentracker.i2p.rocks:6969/announce
+
+http://h4.trakx.nibba.trade:80/announce
+
+udp://vibe.community:6969/announce
+
+udp://us-tracker.publictracker.xyz:6969/announce
+
+udp://udp-tracker.shittyurl.org:6969/announce
+
+udp://u.wwwww.wtf:1/announce
+
+udp://tracker2.itzmx.com:6961/announce
+
+udp://tracker1.bt.moack.co.kr:80/announce
+
+udp://tracker0.ufibox.com:6969/announce
+
+udp://tracker.zum.bi:6969/announce
+
+udp://tracker.v6speed.org:6969/announce
 
 udp://tracker.uw0.xyz:6969/announce
 
-udp://tracker.iamhansen.xyz:2000/announce
-
-udp://zephir.monocul.us:6969/announce
-
-udp://tracker.tvunderground.org.ru:3218/announce
-
-udp://tracker.trackton.ga:7070/announce
-
-udp://tracker.supertracker.net:1337/announce
-
-udp://tracker.nyaa.uk:6969/announce
+udp://tracker.sigterm.xyz:6969/announce
 
 udp://tracker.lelux.fi:6969/announce
 
+udp://tracker.army:6969/announce
+
+udp://tracker.altrosky.nl:6969/announce
+
+udp://tracker.0x.tf:6969/announce
+
+udp://torrentclub.online:54123/announce
+
+udp://t3.leech.ie:1337/announce
+
+udp://t2.leech.ie:1337/announce
+
+udp://storage.groupees.com:6969/announce
+
+udp://sd-161673.dedibox.fr:6969/announce
+
+udp://opentracker.i2p.rocks:6969/announce
+
+udp://nagios.tks.sumy.ua:80/announce
+
+udp://movies.zsw.ca:6969/announce
+
+udp://mail.realliferpg.de:6969/announce
+
+udp://johnrosen1.com:6969/announce
+
+udp://inferno.demonoid.is:3391/announce
+
+udp://free-tracker.zooki.xyz:6969/announce
+
+udp://fe.dealclub.de:6969/announce
+
+udp://engplus.ru:6969/announce
+
+udp://edu.uifr.ru:6969/announce
+
+udp://discord.heihachi.pw:6969/announce
+
+udp://daveking.com:6969/announce
+
+udp://code2chicken.nl:6969/announce
+
+udp://bt2.archive.org:6969/announce
+
+udp://bt2.3kb.xyz:6969/announce
+
+udp://bt1.archive.org:6969/announce
+
+udp://bms-hosxp.com:6969/announce
+
+udp://blokas.io:6969/announce
+
+udp://aruacfilmes.com.br:6969/announce
+
+udp://aaa.army:8866/announce
+
+https://w.wwwww.wtf:443/announce
+
+https://tracker.lelux.fi:443/announce
+
+https://aaa.army:8866/announce
+
+http://vps02.net.orel.ru:80/announce
+
+http://tracker2.itzmx.com:6961/announce
+
+http://tracker1.bt.moack.co.kr:80/announce
+
+http://tracker.zum.bi:6969/announce
+
+http://tracker.vraphim.com:6969/announce
+
+http://tracker.lelux.fi:80/announce
+
+http://torrentclub.online:54123/announce
+
+http://aaa.army:8866/announce
+
+udp://tracker4.itzmx.com:2710/announce
+
+udp://cutiegirl.ru:6969/announce
+
+http://00.mercax.com:443/announce
+
+http://tracker2.dler.org:80/announce
+
+udp://tracker2.dler.org:80/announce
+
+udp://tracker.zemoj.com:6969/announce
+
+udp://tracker.teambelgium.net:6969/announce
+
+udp://tracker.skyts.net:6969/announce
+
 udp://tracker.kamigami.org:2710/announce
 
-udp://tracker.filepit.to:6969/announce
-
-udp://tracker.filemail.com:6969/announce
+udp://tracker.fortu.io:6969/announce
 
 udp://tracker.dler.org:6969/announce
 
-udp://tracker-udp.gbitt.info:80/announce
+udp://tr2.ysagin.top:2710/announce
+
+udp://tr.cili001.com:8070/announce
+
+udp://teamspeak.value-wolf.org:6969/announce
 
 udp://retracker.sevstar.net:2710/announce
 
 udp://retracker.netbynet.ru:2710/announce
 
-udp://retracker.maxnet.ua:80/announce
+udp://public.publictracker.xyz:6969/announce
 
-udp://retracker.baikal-telecom.net:2710/announce
+udp://public-tracker.zooki.xyz:6969/announce
 
-udp://retracker.akado-ural.ru:80/announce
+udp://line-net.ru:6969/announce
 
-udp://newtoncity.org:6969/announce
+udp://drumkitx.com:6969/announce
 
-udp://chihaya.toss.li:9696/announce
+udp://dpiui.reedlan.com:6969/announce
 
-udp://bt.dy20188.com:80/announce
+udp://camera.lei001.com:6969/announce
 
-https://tracker.vectahosting.eu:2053/announce
+udp://bubu.mapfactor.com:6969/announce
 
-https://tracker.lelux.fi:443/announce
+udp://bt.okmp3.ru:2710/announce
 
-https://tracker.gbitt.info:443/announce
+udp://bioquantum.co.za:6969/announce
 
-https://tracker.fastdownload.xyz:443/announce
+udp://admin.videoenpoche.info:6969/announce
 
-https://t.quic.ws:443/announce
+https://tracker.tamersunion.org:443/announce
 
-https://opentracker.co:443/announce
+https://tracker.sloppyta.co:443/announce
 
-http://vps02.net.orel.ru:80/announce
+https://tracker.nitrix.me:443/announce
 
-http://tracker01.loveapp.com:6789/announce
+https://tracker.nanoha.org:443/announce
 
-http://tracker.tvunderground.org.ru:3218/announce
+https://tracker.imgoingto.icu:443/announce
 
-http://tracker.torrentyorg.pl:80/announce
+https://tracker.hama3.net:443/announce
 
-http://tracker.lelux.fi:80/announce
+https://tracker.cyber-hub.net:443/announce
 
-http://tracker.gbitt.info:80/announce
-
-http://tracker.bz:80/announce
-
-http://torrent.nwps.ws:80/announce
-
-http://t.nyaatracker.com:80/announce
-
-http://retracker.sevstar.net:2710/announce
-
-http://open.trackerlist.xyz:80/announce
-
-http://open.acgtracker.com:1096/announce
-
-http://newtoncity.org:6969/announce
-
-http://gwp2-v19.rinet.ru:80/announce
-
-udp://tracker.msm8916.com:6969/announce
-
-https://tracker.publictorrent.net:443/announce
+https://tracker.cyber-hub.net/announce
 
 https://1337.abcvg.info:443/announce
 
-http://tracker4.itzmx.com:2710/announce
+http://vpn.flying-datacenter.de:6969/announce
 
-http://tracker.publictorrent.net:80/announce
+http://tracker.sloppyta.co:80/announce
 
-http://tracker.bt4g.com:2095/announce
+http://tracker.skyts.net:6969/announce
+
+http://tracker.noobsubs.net:80/announce
+
+http://tracker.kamigami.org:2710/announce
+
+http://tracker.dler.org:6969/announce
+
+http://torrenttracker.nwc.acsalaska.net:6969/announce
+
+http://t.nyaatracker.com:80/announce
 
 http://t.acg.rip:6699/announce
 
-http://sub4all.org:2710/announce
+http://retracker.sevstar.net:2710/announce
 
-http://share.camoe.cn:8080/announce
+http://open.acgtracker.com:1096/announce
 
-http://bt-tracker.gamexp.ru:2710/announce
+http://bt.okmp3.ru:2710/announce
 
-http://agusiq-torrents.pl:6969/announce
+http://bobbialbano.com:6969/announce
+
+udp://tsundere.pw:6969/announce
+
+udp://tracker.kali.org:6969/announce
+
+udp://tracker.filemail.com:6969/announce
+
+udp://tr.bangumi.moe:6969/announce
+
+udp://qg.lorzl.gq:2710/announce
+
+udp://open.lolicon.eu:7777/announce
+
+udp://ns389251.ovh.net:6969/announce
+
+udp://ns-1.x-fins.com:6969/announce
+
+udp://concen.org:6969/announce
+
+udp://bt2.54new.com:8080/announce
+
+udp://bt.firebit.org:2710/announce
+
+udp://anidex.moe:6969/announce
+
+https://tracker.foreverpirates.co:443/announce
+
+https://tracker.coalition.space:443/announce
+
+http://tracker4.itzmx.com:2710/announce
+
+http://tracker.bt4g.com:2095/announce
+
+
 
   `
 	for _, line := range strings.Split(text, "\n") {
