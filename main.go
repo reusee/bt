@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/hex"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -14,7 +13,6 @@ import (
 	"time"
 
 	"github.com/anacrolix/torrent"
-	"github.com/anacrolix/torrent/bencode"
 	"golang.org/x/time/rate"
 )
 
@@ -46,32 +44,33 @@ func main() {
 	signal.Notify(c, syscall.SIGTERM, syscall.SIGINT)
 
 	fileSet := new(sync.Map)
-	magnetSet := new(sync.Map)
-	addTorrent := func() {
+	addJobs := func() {
 
-		// torrent files
-		torrentFiles, err := filepath.Glob(filepath.Join(dir, "*"))
+		dirFile, err := os.Open(dir)
 		ce(err)
-		for _, torrentFile := range torrentFiles {
-			if _, ok := fileSet.Load(torrentFile); ok {
+		names, err := dirFile.Readdirnames(-1)
+		ce(err)
+
+		for _, name := range names {
+			path := filepath.Join(dir, name)
+			if _, ok := fileSet.Load(path); ok {
 				continue
 			}
-			fileSet.Store(torrentFile, true)
+			fileSet.Store(path, true)
 
-			torrentFile := torrentFile
 			go func() {
 
 				var t *torrent.Torrent
-				if strings.HasPrefix(torrentFile, "magnet:") {
-					spec, err := torrent.TorrentSpecFromMagnetUri(torrentFile)
+				if strings.HasPrefix(path, "magnet:") {
+					pt("add %s\n", path)
+					spec, err := torrent.TorrentSpecFromMagnetUri(path)
 					ce(err)
 					t, _, err = client.AddTorrentSpec(spec)
 					ce(err)
-					pt("add %s\n", torrentFile)
-				} else if strings.HasSuffix(torrentFile, ".torrent") {
-					t, err = client.AddTorrentFromFile(torrentFile)
+				} else if strings.HasSuffix(path, ".torrent") {
+					pt("add %s\n", path)
+					t, err = client.AddTorrentFromFile(path)
 					ce(err)
-					pt("add %s\n", torrentFile)
 				} else {
 					return
 				}
@@ -107,10 +106,10 @@ func main() {
 						numChecking,
 						numComplete,
 						t.NumPieces(),
-						torrentFile,
+						path,
 					)
 					if t.BytesCompleted() == t.Length() {
-						ce(os.Rename(torrentFile, torrentFile+".complete"))
+						ce(os.Rename(path, path+".complete"))
 						//if err := os.Remove(torrentFile); err != nil {
 						//	panic(err)
 						//}
@@ -123,58 +122,12 @@ func main() {
 			}()
 		}
 
-		// magnet links
-		addMagnetLink := func(link string) {
-			if _, ok := magnetSet.Load(link); ok {
-				return
-			}
-			magnetSet.Store(link, true)
-			go func() {
-				pt("%s\n", link)
-				t, err := client.AddMagnet(link)
-				ce(err)
-				t.AddTrackers(trackers)
-				<-t.GotInfo()
-				metaInfo := t.Metainfo()
-				t.Drop()
-				f, err := os.Create(filepath.Join(dir, t.Info().Name+".torrent"))
-				ce(err)
-				ce(bencode.NewEncoder(f).Encode(metaInfo))
-				ce(f.Close())
-			}()
-		}
-		// file name
-		magnets, err := filepath.Glob(filepath.Join(dir, "magnet:?*"))
-		ce(err)
-		for _, magnet := range magnets {
-			magnet := magnet
-			link := strings.TrimPrefix(magnet, dir)
-			link = strings.TrimPrefix(link, "/")
-			addMagnetLink(link)
-			ce(os.Remove(magnet))
-		}
-		// link in files
-		names, err := filepath.Glob(filepath.Join(dir, "*.magnet"))
-		ce(err)
-		for _, name := range names {
-			content, err := ioutil.ReadFile(name)
-			ce(err)
-			lines := strings.Split(string(content), "\n")
-			for _, line := range lines {
-				line = strings.TrimSpace(line)
-				if !strings.HasPrefix(line, "magnet") {
-					continue
-				}
-				addMagnetLink(line)
-			}
-		}
-
 	}
 
-	addTorrent()
+	addJobs()
 	go func() {
 		for range time.NewTicker(time.Second * 3).C {
-			addTorrent()
+			addJobs()
 		}
 	}()
 
