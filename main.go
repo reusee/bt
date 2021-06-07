@@ -21,6 +21,8 @@ import (
 func main() {
 	dir := "."
 	config := torrent.NewDefaultClientConfig()
+	config.DisableAggressiveUpload = true
+	config.DisableIPv6 = true
 	config.DataDir = dir
 	config.UploadRateLimiter = rate.NewLimiter(
 		rate.Every(time.Second*1),
