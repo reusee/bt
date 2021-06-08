@@ -45,6 +45,8 @@ func main() {
 	c := make(chan os.Signal)
 	signal.Notify(c, syscall.SIGTERM, syscall.SIGINT)
 
+	var lock sync.Mutex
+
 	fileSet := new(sync.Map)
 	addJobs := func() {
 
@@ -95,21 +97,28 @@ func main() {
 						}
 					}
 					stats := t.Stats()
-					pt(
-						"%s: <downloaded %5.2f%%> <peers %d/%d/%d/%d/%d> <piece %d/%d/%d/%d> <file %s>\n",
+					lock.Lock()
+					pt("%s: %s\n",
 						time.Now().Format("15:04:05"),
+						path,
+					)
+					pt("\t%.2f%% completed\n",
 						float64(t.BytesCompleted())/float64(t.Length())*100,
+					)
+					pt("\tpeers: %d pending, %d half open, %d connected, %d active, %d total\n",
 						stats.PendingPeers,
 						stats.HalfOpenPeers,
 						stats.ConnectedSeeders,
 						stats.ActivePeers,
 						stats.TotalPeers,
+					)
+					pt("\tpieces: %d partial, %d checking, %d completed, %d total\n",
 						numPartial,
 						numChecking,
 						numComplete,
 						t.NumPieces(),
-						path,
 					)
+					lock.Unlock()
 					if t.BytesCompleted() == t.Length() {
 						ce(os.Rename(path, path+".complete"))
 						//if err := os.Remove(torrentFile); err != nil {
