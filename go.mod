@@ -1,6 +1,6 @@
 module github.com/reusee/bt
 
-go 1.12
+go 1.16
 
 require (
 	github.com/anacrolix/torrent v1.28.0
