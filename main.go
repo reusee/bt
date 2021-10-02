@@ -3,9 +3,8 @@ package main
 import (
 	"embed"
 	"encoding/hex"
+	"io"
 	"io/fs"
-	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -28,9 +27,9 @@ func main() {
 		rate.Every(time.Second*1),
 		1024*32,
 	)
-	proxyURL, err := url.Parse("socks5://192.168.88.1:9103")
-	ce(err)
-	config.HTTPProxy = http.ProxyURL(proxyURL)
+	//proxyURL, err := url.Parse("socks5://192.168.88.1:9103")
+	//ce(err)
+	//config.HTTPProxy = http.ProxyURL(proxyURL)
 	peerID, err := hex.DecodeString("2d4754303030322d308b23248a2bbbfe67be28c0")
 	ce(err)
 	config.PeerID = string(peerID)
@@ -80,6 +79,42 @@ func main() {
 				}
 
 				t.AddTrackers(trackers)
+				// load tracker list
+				go func() {
+					for {
+						for _, addr := range []string{
+							"https://trackerslist.com/best.txt",
+							"https://raw.githubusercontent.com/ngosang/trackerslist/master/trackers_best.txt",
+						} {
+							func() {
+								resp, err := proxyHTTPClient.Get(addr)
+								if err != nil {
+									pt("%s\n", err)
+									return
+								}
+								defer resp.Body.Close()
+								content, err := io.ReadAll(resp.Body)
+								if err != nil {
+									return
+								}
+								text := string(content)
+								ce(err)
+								var trackers [][]string
+								for _, line := range strings.Split(text, "\n") {
+									line = strings.TrimSpace(line)
+									if len(line) == 0 {
+										continue
+									}
+									trackers = append(trackers, []string{line})
+								}
+								t.AddTrackers(trackers)
+								pt("load %d trackers from %s\n", len(trackers), addr)
+							}()
+						}
+						time.Sleep(time.Minute * 30)
+					}
+				}()
+
 				<-t.GotInfo()
 				t.DownloadAll()
 				for range time.NewTicker(time.Second * 10).C {
