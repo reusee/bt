@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"io"
 	"io/fs"
+	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -27,9 +29,9 @@ func main() {
 		rate.Every(time.Second*1),
 		1024*32,
 	)
-	//proxyURL, err := url.Parse("socks5://192.168.88.1:9103")
-	//ce(err)
-	//config.HTTPProxy = http.ProxyURL(proxyURL)
+	proxyURL, err := url.Parse("socks5://localhost:10000")
+	ce(err)
+	config.HTTPProxy = http.ProxyURL(proxyURL)
 	peerID, err := hex.DecodeString("2d4754303030322d308b23248a2bbbfe67be28c0")
 	ce(err)
 	config.PeerID = string(peerID)

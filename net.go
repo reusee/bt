@@ -7,7 +7,7 @@ import (
 )
 
 var proxyURL = func() *url.URL {
-	u, err := url.Parse("socks5://192.168.88.1:9103")
+	u, err := url.Parse("socks5://localhost:10000")
 	ce(err)
 	return u
 }()
